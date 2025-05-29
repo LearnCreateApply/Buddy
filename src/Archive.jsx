@@ -101,7 +101,7 @@ const Archive = () => {
       ) : (
         <ul>
           {videos.map((vid, i) => (
-            <li key={i} style={{ marginBottom: '10px' }}>
+            <li key={i} style={{ marginBottom: '10px',listStyle:'none' }}>
               <a href={vid.url} download={vid.filename}>
                 {vid.filename}
               </a>
