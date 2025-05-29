@@ -1,0 +1,121 @@
+import React, { useState, useEffect } from 'react';
+import { openDB } from 'idb';
+import { useNavigate } from 'react-router-dom';
+
+const ADMIN_PASSWORD = 'secret123';
+
+const formatFilename = (timestamp) => {
+  const date = new Date(timestamp);
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  let h = date.getHours();
+  const m = String(date.getMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${yyyy}-${mm}-${dd}-${String(h).padStart(2, '0')}-${m}${ampm}.webm`;
+};
+
+const Archive = () => {
+  const [inputPassword, setInputPassword] = useState('');
+  const [authenticated, setAuthenticated] = useState(false);
+  const [videos, setVideos] = useState([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!authenticated) {
+      const unlocked = sessionStorage.getItem('auth') === 'true';
+      if (unlocked) {
+        setAuthenticated(true);
+        loadVideos();
+      }
+    }
+  }, [authenticated]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (inputPassword === ADMIN_PASSWORD) {
+      setAuthenticated(true);
+      sessionStorage.setItem('auth', 'true');
+      await loadVideos();
+    } else {
+      alert('Incorrect password');
+      navigate('/');
+    }
+  };
+
+  const loadVideos = async () => {
+    const db = await openDB('video-db', 1);
+    const all = await db.getAll('videos');
+    const formatted = all.map((entry) => ({
+      ...entry,
+      url: URL.createObjectURL(entry.video),
+      filename: formatFilename(entry.timestamp),
+    }));
+    setVideos(formatted.reverse());
+  };
+
+  const clearVideos = async () => {
+    if (!window.confirm('Delete all recordings?')) return;
+    const db = await openDB('video-db', 1);
+    await db.clear('videos');
+    setVideos([]);
+  };
+
+  if (!authenticated) {
+    return (
+      <div style={{ background: '#000', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <form onSubmit={handleLogin}>
+          <h2>Enter Admin Password</h2>
+          <input
+            type="password"
+            value={inputPassword}
+            onChange={(e) => setInputPassword(e.target.value)}
+            style={{ padding: '10px', fontSize: '1rem' }}
+          />
+          <br />
+          <button type="submit" style={{ marginTop: '1rem', padding: '10px 20px' }}>
+            Login
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 600, margin: '0 auto', padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
+      <h2>📁 Archive</h2>
+      {videos.length === 0 ? (
+        <p>No recordings found.</p>
+      ) : (
+        <ul>
+          {videos.map((vid, i) => (
+            <li key={i} style={{ marginBottom: '10px' }}>
+              <a href={vid.url} download={vid.filename}>
+                {vid.filename}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      {videos.length > 0 && (
+        <button
+          onClick={clearVideos}
+          style={{
+            marginTop: '1rem',
+            padding: '0.5rem 1rem',
+            backgroundColor: 'red',
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+            borderRadius: '5px',
+          }}
+        >
+          Clear All
+        </button>
+      )}
+    </div>
+  );
+};
+
+export default Archive;
