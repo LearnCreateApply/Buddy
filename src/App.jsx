@@ -90,6 +90,8 @@ const App = () => {
       style={{ display: 'none' }}
     />
   ) : (
+    <>
+    
     <div
       onClick={handleClick}
       style={{
@@ -100,6 +102,8 @@ const App = () => {
         padding: 0,
       }}
     />
+    <div><a href="/0">0</a></div>
+    </>
   );
 };
 
