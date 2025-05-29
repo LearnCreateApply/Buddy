@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { openDB } from 'idb';
 import { useNavigate } from 'react-router-dom';
 
-const ADMIN_PASSWORD = 'secret123';
+const ADMIN_PASSWORD = 'SVR'; // Replace with your actual password
 
 const formatFilename = (timestamp) => {
   const date = new Date(timestamp);
@@ -17,29 +17,27 @@ const formatFilename = (timestamp) => {
 };
 
 const Archive = () => {
-  const [inputPassword, setInputPassword] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
   const [videos, setVideos] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
+    // If not authenticated, and not entering password -> redirect
     if (!authenticated) {
-      const unlocked = sessionStorage.getItem('auth') === 'true';
-      if (unlocked) {
-        setAuthenticated(true);
-        loadVideos();
+      const hasVisited = window.performance?.navigation?.type === 1 || performance.getEntriesByType("navigation")[0]?.type === "reload";
+      if (hasVisited) {
+        navigate('/');
       }
     }
-  }, [authenticated]);
+  }, [authenticated, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (inputPassword === ADMIN_PASSWORD) {
+    if (passwordInput === ADMIN_PASSWORD) {
       setAuthenticated(true);
-      sessionStorage.setItem('auth', 'true');
       await loadVideos();
     } else {
-      alert('Incorrect password');
       navigate('/');
     }
   };
@@ -64,13 +62,22 @@ const Archive = () => {
 
   if (!authenticated) {
     return (
-      <div style={{ background: '#000', color: '#fff', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        style={{
+          background: '#000',
+          color: '#fff',
+          height: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <form onSubmit={handleLogin}>
           <h2>Enter Admin Password</h2>
           <input
             type="password"
-            value={inputPassword}
-            onChange={(e) => setInputPassword(e.target.value)}
+            value={passwordInput}
+            onChange={(e) => setPasswordInput(e.target.value)}
             style={{ padding: '10px', fontSize: '1rem' }}
           />
           <br />
@@ -83,7 +90,14 @@ const Archive = () => {
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
+    <div
+      style={{
+        maxWidth: 600,
+        margin: '0 auto',
+        padding: '2rem',
+        fontFamily: 'Arial, sans-serif',
+      }}
+    >
       <h2>📁 Archive</h2>
       {videos.length === 0 ? (
         <p>No recordings found.</p>

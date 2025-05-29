@@ -1,68 +1,106 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import { openDB } from 'idb';
+
+const DB_NAME = 'video-db';
+const STORE_NAME = 'videos';
+
+const initDB = async () => {
+  return openDB(DB_NAME, 1, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+      }
+    },
+  });
+};
 
 const App = () => {
-  const recorderRef = useRef(null);
-  const chunksRef = useRef([]);
   const [recording, setRecording] = useState(false);
+  const [useNativeCapture, setUseNativeCapture] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const streamRef = useRef(null);
+  const chunksRef = useRef([]);
 
-  const handleTap = async () => {
+  useEffect(() => {
+    if (
+      !window.MediaRecorder ||
+      (!MediaRecorder.isTypeSupported('video/webm') &&
+        !MediaRecorder.isTypeSupported('video/mp4'))
+    ) {
+      setUseNativeCapture(true);
+    }
+  }, []);
+
+  const handleClick = async () => {
+    if (useNativeCapture) return; // No click handler in fallback mode
+
     if (!recording) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'environment' },
-          audio: false,
         });
+        streamRef.current = stream;
 
-        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-        recorderRef.current = recorder;
+        let options = {};
+        if (MediaRecorder.isTypeSupported('video/webm')) {
+          options.mimeType = 'video/webm';
+        } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+          options.mimeType = 'video/mp4';
+        }
+
+        mediaRecorderRef.current = new MediaRecorder(stream, options);
         chunksRef.current = [];
 
-        recorder.ondataavailable = (e) => {
-          if (e.data.size > 0) chunksRef.current.push(e.data);
+        mediaRecorderRef.current.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            chunksRef.current.push(e.data);
+          }
         };
 
-        recorder.onstop = async () => {
-          const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-          const db = await openDB();
-          const tx = db.transaction('videos', 'readwrite');
-          await tx.store.add({ video: blob, timestamp: new Date().toISOString() });
+        mediaRecorderRef.current.onstop = async () => {
+          const blob = new Blob(chunksRef.current, { type: options.mimeType || 'video/webm' });
+          const db = await initDB();
+          await db.add(STORE_NAME, { video: blob, timestamp: new Date().toISOString() });
         };
 
-        recorder.start(1000); // For iOS compatibility
+        mediaRecorderRef.current.start(1000);
         setRecording(true);
       } catch (err) {
-        console.error('Camera error:', err);
+        console.error('Error starting recording:', err);
       }
     } else {
-      recorderRef.current?.stop();
+      mediaRecorderRef.current?.stop();
+      streamRef.current?.getTracks().forEach((t) => t.stop());
       setRecording(false);
     }
   };
 
-  return (
+  return useNativeCapture ? (
+    <input
+      type="file"
+      accept="video/*"
+      capture="environment"
+      onChange={async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const db = await initDB();
+        await db.add(STORE_NAME, { video: file, timestamp: new Date().toISOString() });
+        e.target.value = null;
+      }}
+      style={{ display: 'none' }}
+    />
+  ) : (
     <div
-      onClick={handleTap}
+      onClick={handleClick}
       style={{
-        background: 'black',
         width: '100vw',
         height: '100vh',
+        backgroundColor: 'black',
         margin: 0,
         padding: 0,
-        cursor: 'pointer',
       }}
     />
   );
-};
-
-const openDB = async () => {
-  const { openDB } = await import('idb');
-  return openDB('video-db', 1, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains('videos')) {
-        db.createObjectStore('videos', { keyPath: 'id', autoIncrement: true });
-      }
-    },
-  });
 };
 
 export default App;
