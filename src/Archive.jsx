@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { openDB } from 'idb';
 import { useNavigate } from 'react-router-dom';
 
-const ADMIN_PASSWORD = 'SVR'; // Replace with your actual password
+const ADMIN_PASSWORD = 'mkzs9674'; // Replace with your actual password
 
 const formatFilename = (timestamp) => {
   const date = new Date(timestamp);
@@ -54,7 +54,6 @@ const Archive = () => {
   };
 
   const clearVideos = async () => {
-    if (!window.confirm('Delete all recordings?')) return;
     const db = await openDB('video-db', 1);
     await db.clear('videos');
     setVideos([]);
@@ -73,7 +72,6 @@ const Archive = () => {
         }}
       >
         <form onSubmit={handleLogin}>
-          <h2>Enter Admin Password</h2>
           <input
             type="password"
             value={passwordInput}
@@ -82,7 +80,7 @@ const Archive = () => {
           />
           <br />
           <button type="submit" style={{ marginTop: '1rem', padding: '10px 20px' }}>
-            Login
+            Enter
           </button>
         </form>
       </div>
@@ -98,9 +96,8 @@ const Archive = () => {
         fontFamily: 'Arial, sans-serif',
       }}
     >
-      <h2>📁 Archive</h2>
       {videos.length === 0 ? (
-        <p>No recordings found.</p>
+        <></>
       ) : (
         <ul>
           {videos.map((vid, i) => (
@@ -125,7 +122,7 @@ const Archive = () => {
             borderRadius: '5px',
           }}
         >
-          Clear All
+          *
         </button>
       )}
     </div>
